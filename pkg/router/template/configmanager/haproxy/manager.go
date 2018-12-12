@@ -812,6 +812,12 @@ func (cm *haproxyConfigManager) reset() {
 func (cm *haproxyConfigManager) findMatchingBlueprint(route *routev1.Route) *routev1.Route {
 	termination := routeTerminationType(route)
 	routeModifiers := backendModAnnotations(route)
+
+	// when route matches the annotation the configuration will be reloaded
+	if _, ok := route.Annotations["haproxy.router.openshift.io/skip-route-blueprint-match"]; ok {
+		return nil
+	}
+
 	for _, candidate := range cm.blueprintRoutes {
 		t2 := routeTerminationType(candidate)
 		if termination != t2 {
@@ -1103,6 +1109,15 @@ func modAnnotationsList(termination routev1.TLSTerminationType) []string {
 		"haproxy.router.openshift.io/rate-limit-connections.rate-http",
 		"haproxy.router.openshift.io/pod-concurrent-connections",
 		"router.openshift.io/haproxy.health.check.interval",
+	}
+
+	// allow adding list of extra annotations for HAProxy blueprint
+	listExtraAnnotations := os.Getenv("ROUTER_BLUEPRINT_CUSTOM_ANNOTATIONS")
+	for _, entry := range strings.Split(listExtraAnnotations, ",") {
+		if v := strings.Trim(entry, " "); len(v) > 0 {
+			glog.V(6).Infof("ROUTER_BLUEPRINT_CUSTOM_ANNOTATIONS has anotation %s", entry)
+			annotations = append(annotations, v)
+		}
 	}
 
 	if termination == routev1.TLSTerminationPassthrough {
