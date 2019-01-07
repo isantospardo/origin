@@ -148,7 +148,7 @@ type haproxyConfigManager struct {
 	// commitTimer indicates if a router config commit is pending.
 	commitTimer *time.Timer
 
-	// listExtraAnnotations is a list of all environments created
+	// listExtraAnnotations is a list of all extra annotations needed for HAProxy blueprint
 	listExtraAnnotations []string
 }
 
@@ -158,12 +158,13 @@ func NewHAProxyConfigManager(options templaterouter.ConfigManagerOptions) *hapro
 
 	glog.V(4).Infof("%s: options = %+v\n", haproxyManagerName, options)
 
-	annotations := []string{}
+	listExtraAnnotations := []string{}
 	extraAnnotations := os.Getenv("ROUTER_BLUEPRINT_CUSTOM_ANNOTATIONS")
 	// allow adding list of extra annotations for HAProxy blueprint
 	for _, entry := range strings.Split(extraAnnotations, ",") {
 		if v := strings.Trim(entry, " "); len(v) > 0 {
-			annotations = append(annotations, v)
+			glog.V(6).Infof("ROUTER_BLUEPRINT_CUSTOM_ANNOTATIONS has anotation %s", entry)
+			listExtraAnnotations = append(listExtraAnnotations, v)
 		}
 	}
 
@@ -181,7 +182,7 @@ func NewHAProxyConfigManager(options templaterouter.ConfigManagerOptions) *hapro
 		reloadInProgress:     false,
 		backendEntries:       make(map[string]*routeBackendEntry),
 		poolUsage:            make(map[string]string),
-		listExtraAnnotations: annotations,
+		listExtraAnnotations: listExtraAnnotations,
 	}
 }
 
@@ -1125,11 +1126,8 @@ func modAnnotationsList(termination routev1.TLSTerminationType, listExtraAnnotat
 	}
 
 	// allow adding list of extra annotations for HAProxy blueprint
-	for _, entry := range listExtraAnnotations {
-		if v := strings.Trim(entry, " "); len(v) > 0 {
-			glog.V(6).Infof("ROUTER_BLUEPRINT_CUSTOM_ANNOTATIONS has anotation %s", entry)
-			annotations = append(annotations, v)
-		}
+	if len(listExtraAnnotations) > 0 {
+		annotations = append(annotations, listExtraAnnotations...)
 	}
 
 	if termination == routev1.TLSTerminationPassthrough {
